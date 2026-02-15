@@ -1,7 +1,15 @@
 {
   "name": "@hasna/implementations",
   "version": "0.1.0",
-  "description": "Plans, audits, and logs for AI coding agents - CLI + MCP server + interactive TUI",
+  "description": "Plans, audits, and logs for AI coding agents - CLI + MCP server + interactive TUI + web dashboard",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hasna/implementations.git"
+  },
+  "homepage": "https://github.com/hasna/implementations",
+  "bugs": {
+    "url": "https://github.com/hasna/implementations/issues"
+  },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -42,7 +50,8 @@
     "codex",
     "gemini",
     "tui",
-    "cli"
+    "cli",
+    "dashboard"
   ],
   "author": "hasna",
   "license": "Apache-2.0",
