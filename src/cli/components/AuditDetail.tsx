@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import type { Audit } from "../../types/index.js";
+import { safeText } from "../utils/terminal.js";
 
 interface AuditDetailProps {
   audit: Audit;
@@ -33,42 +34,42 @@ export function AuditDetail({ audit }: AuditDetailProps) {
       <Box flexDirection="column" marginBottom={1}>
         <Box>
           <Text dimColor>{"ID:        "}</Text>
-          <Text>{audit.id}</Text>
+          <Text>{safeText(audit.id)}</Text>
         </Box>
         <Box>
           <Text dimColor>{"Title:     "}</Text>
-          <Text bold>{audit.title}</Text>
+          <Text bold>{safeText(audit.title)}</Text>
         </Box>
         <Box>
           <Text dimColor>{"Type:      "}</Text>
-          <Text>{audit.type}</Text>
+          <Text>{safeText(audit.type)}</Text>
         </Box>
         <Box>
           <Text dimColor>{"Status:    "}</Text>
-          <Text color={sColor}>{audit.status}</Text>
+          <Text color={sColor}>{safeText(audit.status)}</Text>
         </Box>
         {audit.severity && (
           <Box>
             <Text dimColor>{"Severity:  "}</Text>
-            <Text color={sevColor}>{audit.severity}</Text>
+            <Text color={sevColor}>{safeText(audit.severity)}</Text>
           </Box>
         )}
         <Box>
           <Text dimColor>{"Version:   "}</Text>
-          <Text>{audit.version}</Text>
+          <Text>{safeText(audit.version)}</Text>
         </Box>
         <Box>
           <Text dimColor>{"Created:   "}</Text>
-          <Text>{audit.created_at}</Text>
+          <Text>{safeText(audit.created_at)}</Text>
         </Box>
         <Box>
           <Text dimColor>{"Updated:   "}</Text>
-          <Text>{audit.updated_at}</Text>
+          <Text>{safeText(audit.updated_at)}</Text>
         </Box>
         {audit.completed_at && (
           <Box>
             <Text dimColor>{"Completed: "}</Text>
-            <Text>{audit.completed_at}</Text>
+            <Text>{safeText(audit.completed_at)}</Text>
           </Box>
         )}
       </Box>
@@ -76,7 +77,7 @@ export function AuditDetail({ audit }: AuditDetailProps) {
       {audit.findings && (
         <Box flexDirection="column">
           <Text bold>Findings:</Text>
-          <Text>{audit.findings}</Text>
+          <Text>{safeText(audit.findings)}</Text>
         </Box>
       )}
     </Box>

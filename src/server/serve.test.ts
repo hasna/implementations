@@ -3,6 +3,8 @@ import { getDatabase, closeDatabase, resetDatabase } from "../db/database.js";
 import { createPlan, listPlans } from "../db/plans.js";
 import { createAudit, listAudits } from "../db/audits.js";
 import { createLog, listLogs } from "../db/logs.js";
+import { createProject } from "../db/projects.js";
+import { getStats } from "../db/stats.js";
 import type { Database } from "bun:sqlite";
 
 let db: Database;
@@ -38,30 +40,7 @@ beforeEach(() => {
 
       // GET /api/stats
       if (path === "/api/stats" && method === "GET") {
-        const allPlans = listPlans({}, db);
-        const allAudits = listAudits({}, db);
-        const allLogs = listLogs({ limit: 1000 }, db);
-        return json({
-          plans: {
-            total: allPlans.length,
-            draft: allPlans.filter((p) => p.status === "draft").length,
-            active: allPlans.filter((p) =>
-              ["draft", "review", "approved", "in_progress"].includes(p.status)
-            ).length,
-            done: allPlans.filter((p) => p.status === "done").length,
-          },
-          audits: {
-            total: allAudits.length,
-            pending: allAudits.filter((a) => a.status === "pending" || a.status === "in_progress").length,
-            completed: allAudits.filter((a) => a.status === "completed").length,
-            failed: allAudits.filter((a) => a.status === "failed").length,
-          },
-          logs: {
-            total: allLogs.length,
-            errors: allLogs.filter((l) => l.level === "error").length,
-            warns: allLogs.filter((l) => l.level === "warn").length,
-          },
-        });
+        return json(getStats(db));
       }
 
       // GET /api/plans
@@ -152,7 +131,7 @@ beforeEach(() => {
           headers: {
             "Access-Control-Allow-Origin": `http://localhost:${PORT}`,
             "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Headers": "Content-Type, X-Implementations-Update, X-Implementations-Token",
           },
         });
       }
@@ -177,12 +156,14 @@ describe("GET /api/stats", () => {
     const res = await fetch(`${BASE}/api/stats`);
     expect(res.status).toBe(200);
     const stats = await res.json();
+    expect(stats.projects.total).toBe(0);
     expect(stats.plans.total).toBe(0);
     expect(stats.audits.total).toBe(0);
     expect(stats.logs.total).toBe(0);
   });
 
   it("should return correct counts after creating data", async () => {
+    createProject({ name: "Project 1", path: "/tmp/project-1" }, db);
     createPlan({ title: "Plan 1" }, db);
     createPlan({ title: "Plan 2", status: "done" }, db);
     createPlan({ title: "Plan 3", status: "in_progress" }, db);
@@ -194,6 +175,7 @@ describe("GET /api/stats", () => {
 
     const res = await fetch(`${BASE}/api/stats`);
     const stats = await res.json();
+    expect(stats.projects.total).toBe(1);
     expect(stats.plans.total).toBe(3);
     expect(stats.plans.active).toBe(2); // draft + in_progress
     expect(stats.plans.done).toBe(1);

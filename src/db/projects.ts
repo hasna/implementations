@@ -1,20 +1,34 @@
 import type { Database, SQLQueryBindings } from "bun:sqlite";
+import { resolve } from "node:path";
 import type { CreateProjectInput, Project } from "../types/index.js";
 import { ProjectNotFoundError } from "../types/index.js";
 import { getDatabase, now, uuid } from "./database.js";
+
+function normalizeProjectPath(path: string): string {
+  return resolve(path);
+}
 
 export function createProject(
   input: CreateProjectInput,
   db?: Database,
 ): Project {
   const d = db || getDatabase();
+  const name = input.name?.trim();
+  const rawPath = input.path?.trim();
+  if (!name) {
+    throw new Error("Project name is required");
+  }
+  if (!rawPath) {
+    throw new Error("Project path is required");
+  }
   const id = uuid();
   const timestamp = now();
+  const normalizedPath = normalizeProjectPath(rawPath);
 
   d.run(
     `INSERT INTO projects (id, name, path, description, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    [id, input.name, input.path, input.description || null, timestamp, timestamp],
+    [id, name, normalizedPath, input.description?.trim() || null, timestamp, timestamp],
   );
 
   return getProject(id, d)!;
@@ -28,9 +42,10 @@ export function getProject(id: string, db?: Database): Project | null {
 
 export function getProjectByPath(path: string, db?: Database): Project | null {
   const d = db || getDatabase();
+  const normalizedPath = normalizeProjectPath(path);
   const row = d
     .query("SELECT * FROM projects WHERE path = ?")
-    .get(path) as Project | null;
+    .get(normalizedPath) as Project | null;
   return row;
 }
 
@@ -54,12 +69,16 @@ export function updateProject(
   const params: SQLQueryBindings[] = [now()];
 
   if (input.name !== undefined) {
+    const name = input.name.trim();
+    if (!name) {
+      throw new Error("Project name cannot be empty");
+    }
     sets.push("name = ?");
-    params.push(input.name);
+    params.push(name);
   }
   if (input.description !== undefined) {
     sets.push("description = ?");
-    params.push(input.description);
+    params.push(input.description?.trim() || null);
   }
 
   params.push(id);
@@ -80,7 +99,8 @@ export function ensureProject(
   db?: Database,
 ): Project {
   const d = db || getDatabase();
-  const existing = getProjectByPath(path, d);
+  const normalizedPath = normalizeProjectPath(path);
+  const existing = getProjectByPath(normalizedPath, d);
   if (existing) return existing;
-  return createProject({ name, path }, d);
+  return createProject({ name, path: normalizedPath }, d);
 }

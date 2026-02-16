@@ -26,7 +26,7 @@ interface CreateAuditDialogProps {
     type?: string;
     severity?: string;
     findings?: string;
-  }) => void;
+  }) => Promise<boolean>;
 }
 
 export function CreateAuditDialog({ onCreate }: CreateAuditDialogProps) {
@@ -35,23 +35,34 @@ export function CreateAuditDialog({ onCreate }: CreateAuditDialogProps) {
   const [type, setType] = React.useState("other");
   const [severity, setSeverity] = React.useState("info");
   const [findings, setFindings] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || submitting) return;
 
-    onCreate({
-      title: title.trim(),
-      type,
-      severity,
-      findings: findings.trim() || undefined,
-    });
+    setSubmitting(true);
+    let ok = false;
+    try {
+      ok = await onCreate({
+        title: title.trim(),
+        type,
+        severity,
+        findings: findings.trim() || undefined,
+      });
+    } catch {
+      ok = false;
+    } finally {
+      setSubmitting(false);
+    }
 
-    setTitle("");
-    setType("other");
-    setSeverity("info");
-    setFindings("");
-    setOpen(false);
+    if (ok) {
+      setTitle("");
+      setType("other");
+      setSeverity("info");
+      setFindings("");
+      setOpen(false);
+    }
   }
 
   return (
@@ -120,7 +131,7 @@ export function CreateAuditDialog({ onCreate }: CreateAuditDialogProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={!title.trim()}>
+            <Button type="submit" disabled={!title.trim() || submitting}>
               Create Audit
             </Button>
           </DialogFooter>

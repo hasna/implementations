@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Box, Text, useInput } from "ink";
+import { safeText } from "../utils/terminal.js";
 
 interface PlanFormProps {
   onSubmit: (data: { title: string; description?: string; status?: string }) => void;
@@ -28,9 +29,10 @@ export function PlanForm({ onSubmit, onCancel }: PlanFormProps) {
       } else if (key.rightArrow || input === "l") {
         setStatusIdx((i) => Math.min(STATUSES.length - 1, i + 1));
       } else if (key.return) {
+        if (!title.trim()) return;
         onSubmit({
-          title,
-          description: description || undefined,
+          title: title.trim(),
+          description: description.trim() || undefined,
           status: STATUSES[statusIdx],
         });
       } else if (key.tab) {
@@ -65,14 +67,14 @@ export function PlanForm({ onSubmit, onCancel }: PlanFormProps) {
       <Box marginTop={1}>
         <Text dimColor>Title:  </Text>
         <Text color={field === "title" ? "cyan" : undefined}>
-          {title}
+          {safeText(title)}
           {field === "title" ? "▌" : ""}
         </Text>
       </Box>
       <Box>
         <Text dimColor>Desc:   </Text>
         <Text color={field === "description" ? "cyan" : undefined}>
-          {description}
+          {safeText(description)}
           {field === "description" ? "▌" : ""}
         </Text>
       </Box>

@@ -1,64 +1,116 @@
 import * as React from "react";
-import { RefreshCwIcon } from "lucide-react";
+import { RefreshCwIcon, ArrowUpCircleIcon } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { StatsCards } from "@/components/stats-cards";
 import { PlansTable } from "@/components/plans-table";
 import { AuditsTable } from "@/components/audits-table";
 import { LogsTable } from "@/components/logs-table";
+import { ProjectsTable } from "@/components/projects-table";
 import { CreatePlanDialog } from "@/components/create-plan-dialog";
 import { CreateAuditDialog } from "@/components/create-audit-dialog";
 import { CreateLogDialog } from "@/components/create-log-dialog";
+import { CreateProjectDialog } from "@/components/create-project-dialog";
 import { Button } from "@/components/ui/button";
-import type { Plan, Audit, Log, DashboardStats } from "@/types";
+import type { Plan, Audit, Log, Project, DashboardStats } from "@/types";
 
-type Tab = "plans" | "audits" | "logs";
+type Tab = "plans" | "audits" | "logs" | "projects";
 
 const defaultStats: DashboardStats = {
+  projects: { total: 0 },
   plans: { total: 0, draft: 0, active: 0, done: 0 },
   audits: { total: 0, pending: 0, completed: 0, failed: 0 },
   logs: { total: 0, errors: 0, warns: 0 },
 };
+
+async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+  const res = await fetch(input, init);
+  let data: unknown = null;
+  try {
+    data = await res.json();
+  } catch {
+    if (res.ok) {
+      throw new Error("Invalid JSON response");
+    }
+  }
+  if (!res.ok) {
+    const message =
+      typeof data === "object" && data && "error" in data
+        ? String((data as { error?: unknown }).error)
+        : `Request failed (${res.status})`;
+    throw new Error(message);
+  }
+  return data as T;
+}
 
 export function App() {
   const [tab, setTab] = React.useState<Tab>("plans");
   const [plans, setPlans] = React.useState<Plan[]>([]);
   const [audits, setAudits] = React.useState<Audit[]>([]);
   const [logs, setLogs] = React.useState<Log[]>([]);
+  const [projects, setProjects] = React.useState<Project[]>([]);
   const [stats, setStats] = React.useState<DashboardStats>(defaultStats);
   const [loading, setLoading] = React.useState(true);
+  const [updating, setUpdating] = React.useState(false);
   const [toast, setToast] = React.useState<{
     message: string;
     type: "success" | "error";
   } | null>(null);
+  const toastTimerRef = React.useRef<number | null>(null);
+  const loadAbortRef = React.useRef<AbortController | null>(null);
+  const loadSeqRef = React.useRef(0);
 
-  function showToast(message: string, type: "success" | "error") {
+  const showToast = React.useCallback((message: string, type: "success" | "error") => {
+    if (toastTimerRef.current !== null) {
+      window.clearTimeout(toastTimerRef.current);
+    }
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  }
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 3000);
+  }, []);
 
   const loadData = React.useCallback(async () => {
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+    const seq = ++loadSeqRef.current;
     setLoading(true);
     try {
-      const [plansRes, auditsRes, logsRes, statsRes] = await Promise.all([
-        fetch("/api/plans"),
-        fetch("/api/audits"),
-        fetch("/api/logs?limit=100"),
-        fetch("/api/stats"),
+      const [plansData, auditsData, logsData, projectsData, statsData] = await Promise.all([
+        fetchJson<Plan[]>("/api/plans", { signal: controller.signal }),
+        fetchJson<Audit[]>("/api/audits", { signal: controller.signal }),
+        fetchJson<Log[]>("/api/logs?limit=100", { signal: controller.signal }),
+        fetchJson<Project[]>("/api/projects", { signal: controller.signal }),
+        fetchJson<DashboardStats>("/api/stats", { signal: controller.signal }),
       ]);
-      setPlans(await plansRes.json());
-      setAudits(await auditsRes.json());
-      setLogs(await logsRes.json());
-      setStats(await statsRes.json());
-    } catch {
-      showToast("Failed to load data", "error");
+      if (loadSeqRef.current !== seq) return;
+      setPlans(plansData);
+      setAudits(auditsData);
+      setLogs(logsData);
+      setProjects(projectsData);
+      setStats(statsData);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      controller.abort();
+      showToast(error instanceof Error ? error.message : "Failed to load data", "error");
     } finally {
-      setLoading(false);
+      if (loadSeqRef.current === seq) {
+        setLoading(false);
+      }
     }
-  }, []);
+  }, [showToast]);
 
   React.useEffect(() => {
     loadData();
   }, [loadData]);
+
+  React.useEffect(() => {
+    return () => {
+      loadSeqRef.current += 1;
+      loadAbortRef.current?.abort();
+      if (toastTimerRef.current !== null) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   async function handleCreatePlan(data: {
     title: string;
@@ -66,18 +118,19 @@ export function App() {
     content?: string;
     status?: string;
     tags?: string[];
-  }) {
+  }): Promise<boolean> {
     try {
-      const res = await fetch("/api/plans", {
+      await fetchJson<Plan>("/api/plans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create plan");
       showToast("Plan created", "success");
       loadData();
-    } catch {
-      showToast("Failed to create plan", "error");
+      return true;
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to create plan", "error");
+      return false;
     }
   }
 
@@ -86,18 +139,19 @@ export function App() {
     type?: string;
     severity?: string;
     findings?: string;
-  }) {
+  }): Promise<boolean> {
     try {
-      const res = await fetch("/api/audits", {
+      await fetchJson<Audit>("/api/audits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create audit");
       showToast("Audit created", "success");
       loadData();
-    } catch {
-      showToast("Failed to create audit", "error");
+      return true;
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to create audit", "error");
+      return false;
     }
   }
 
@@ -105,40 +159,94 @@ export function App() {
     message: string;
     level?: string;
     source?: string;
-  }) {
+  }): Promise<boolean> {
     try {
-      const res = await fetch("/api/logs", {
+      await fetchJson<Log>("/api/logs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create log");
       showToast("Log created", "success");
       loadData();
-    } catch {
-      showToast("Failed to create log", "error");
+      return true;
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to create log", "error");
+      return false;
     }
   }
 
   async function handleDeletePlan(id: string) {
     try {
-      const res = await fetch(`/api/plans/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete plan");
+      const result = await fetchJson<{ success: boolean }>(`/api/plans/${id}`, {
+        method: "DELETE",
+      });
+      if (!result.success) throw new Error("Failed to delete plan");
       showToast("Plan deleted", "success");
       loadData();
-    } catch {
-      showToast("Failed to delete plan", "error");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to delete plan", "error");
     }
   }
 
   async function handleDeleteAudit(id: string) {
     try {
-      const res = await fetch(`/api/audits/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete audit");
+      const result = await fetchJson<{ success: boolean }>(`/api/audits/${id}`, {
+        method: "DELETE",
+      });
+      if (!result.success) throw new Error("Failed to delete audit");
       showToast("Audit deleted", "success");
       loadData();
-    } catch {
-      showToast("Failed to delete audit", "error");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to delete audit", "error");
+    }
+  }
+
+  async function handleCreateProject(data: {
+    name: string;
+    path: string;
+    description?: string;
+  }): Promise<boolean> {
+    try {
+      await fetchJson<Project>("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      showToast("Project registered", "success");
+      loadData();
+      return true;
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to create project", "error");
+      return false;
+    }
+  }
+
+  async function handleDeleteProject(id: string) {
+    try {
+      const result = await fetchJson<{ success: boolean }>(`/api/projects/${id}`, {
+        method: "DELETE",
+      });
+      if (!result.success) throw new Error("Failed to delete project");
+      showToast("Project deleted", "success");
+      loadData();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to delete project", "error");
+    }
+  }
+
+  async function handleUpdate() {
+    setUpdating(true);
+    try {
+      const data = await fetchJson<{ success: boolean; output?: string }>("/api/update", {
+        method: "POST",
+        headers: { "X-Implementations-Update": "true" },
+      });
+      if (!data.success) throw new Error("Update failed");
+      showToast("Package updated", "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Update failed", "error");
+    } finally {
+      setUpdating(false);
     }
   }
 
@@ -146,6 +254,7 @@ export function App() {
     { key: "plans", label: "Plans" },
     { key: "audits", label: "Audits" },
     { key: "logs", label: "Logs" },
+    { key: "projects", label: "Projects" },
   ];
 
   return (
@@ -167,6 +276,17 @@ export function App() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleUpdate}
+              disabled={updating}
+            >
+              <ArrowUpCircleIcon
+                className={`size-3.5 ${updating ? "animate-spin" : ""}`}
+              />
+              Update
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -208,6 +328,7 @@ export function App() {
             {tab === "plans" && <CreatePlanDialog onCreate={handleCreatePlan} />}
             {tab === "audits" && <CreateAuditDialog onCreate={handleCreateAudit} />}
             {tab === "logs" && <CreateLogDialog onCreate={handleCreateLog} />}
+            {tab === "projects" && <CreateProjectDialog onCreate={handleCreateProject} />}
           </div>
         </div>
 
@@ -215,6 +336,7 @@ export function App() {
         {tab === "plans" && <PlansTable data={plans} onDelete={handleDeletePlan} />}
         {tab === "audits" && <AuditsTable data={audits} onDelete={handleDeleteAudit} />}
         {tab === "logs" && <LogsTable data={logs} />}
+        {tab === "projects" && <ProjectsTable data={projects} onDelete={handleDeleteProject} />}
       </main>
 
       {/* Toast */}

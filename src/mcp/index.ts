@@ -131,6 +131,8 @@ server.tool(
       z.array(z.enum(["draft", "review", "approved", "in_progress", "done", "archived"])),
     ]).optional().describe("Filter by status"),
     tags: z.array(z.string()).optional().describe("Filter by tags (any match)"),
+    limit: z.number().optional().describe("Max entries"),
+    offset: z.number().optional().describe("Offset for pagination"),
   },
   async (params) => {
     try {
@@ -271,6 +273,8 @@ server.tool(
       z.enum(["info", "low", "medium", "high", "critical"]),
       z.array(z.enum(["info", "low", "medium", "high", "critical"])),
     ]).optional().describe("Filter by severity"),
+    limit: z.number().optional().describe("Max entries"),
+    offset: z.number().optional().describe("Offset for pagination"),
   },
   async (params) => {
     try {
@@ -403,6 +407,7 @@ server.tool(
     ]).optional().describe("Filter by level"),
     source: z.string().optional().describe("Filter by source"),
     limit: z.number().optional().describe("Max entries (default 50)"),
+    offset: z.number().optional().describe("Offset for pagination"),
   },
   async (params) => {
     try {

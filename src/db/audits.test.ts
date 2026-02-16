@@ -55,6 +55,11 @@ describe("createAudit", () => {
     expect(audit.findings).toBe("Found vulnerability");
     expect(audit.metadata).toEqual({ tool: "snyk" });
   });
+
+  it("should set completed_at when created as completed", () => {
+    const audit = createAudit({ title: "Done", status: "completed" }, db);
+    expect(audit.completed_at).toBeTruthy();
+  });
 });
 
 describe("getAudit", () => {
@@ -153,6 +158,16 @@ describe("updateAudit", () => {
       db,
     );
     expect(updated.completed_at).toBeTruthy();
+  });
+
+  it("should clear completed_at when status becomes active", () => {
+    const audit = createAudit({ title: "Test", status: "completed" }, db);
+    const updated = updateAudit(
+      audit.id,
+      { version: audit.version, status: "pending" },
+      db,
+    );
+    expect(updated.completed_at).toBeNull();
   });
 });
 

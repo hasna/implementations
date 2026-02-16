@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import type { Plan } from "../../types/index.js";
+import { safeText } from "../utils/terminal.js";
 
 interface PlanDetailProps {
   plan: Plan;
@@ -16,6 +17,7 @@ const statusColors: Record<string, string> = {
 
 export function PlanDetail({ plan }: PlanDetailProps) {
   const sColor = statusColors[plan.status] || "white";
+  const safeTags = plan.tags.map(safeText).join(", ");
 
   return (
     <Box flexDirection="column" paddingLeft={1}>
@@ -26,50 +28,50 @@ export function PlanDetail({ plan }: PlanDetailProps) {
       <Box flexDirection="column" marginBottom={1}>
         <Box>
           <Text dimColor>{"ID:          "}</Text>
-          <Text>{plan.id}</Text>
+          <Text>{safeText(plan.id)}</Text>
         </Box>
         <Box>
           <Text dimColor>{"Title:       "}</Text>
-          <Text bold>{plan.title}</Text>
+          <Text bold>{safeText(plan.title)}</Text>
         </Box>
         <Box>
           <Text dimColor>{"Slug:        "}</Text>
-          <Text>{plan.slug}</Text>
+          <Text>{safeText(plan.slug)}</Text>
         </Box>
         <Box>
           <Text dimColor>{"Status:      "}</Text>
-          <Text color={sColor}>{plan.status}</Text>
+          <Text color={sColor}>{safeText(plan.status)}</Text>
         </Box>
         {plan.description && (
           <Box>
             <Text dimColor>{"Description: "}</Text>
-            <Text>{plan.description}</Text>
+            <Text>{safeText(plan.description)}</Text>
           </Box>
         )}
         {plan.tags.length > 0 && (
           <Box>
             <Text dimColor>{"Tags:        "}</Text>
-            <Text>{plan.tags.join(", ")}</Text>
+            <Text>{safeTags}</Text>
           </Box>
         )}
         <Box>
           <Text dimColor>{"Version:     "}</Text>
-          <Text>{plan.version}</Text>
+          <Text>{safeText(plan.version)}</Text>
         </Box>
         <Box>
           <Text dimColor>{"Created:     "}</Text>
-          <Text>{plan.created_at}</Text>
+          <Text>{safeText(plan.created_at)}</Text>
         </Box>
         <Box>
           <Text dimColor>{"Updated:     "}</Text>
-          <Text>{plan.updated_at}</Text>
+          <Text>{safeText(plan.updated_at)}</Text>
         </Box>
       </Box>
 
       {plan.content && (
         <Box flexDirection="column">
           <Text bold>Content:</Text>
-          <Text>{plan.content}</Text>
+          <Text>{safeText(plan.content)}</Text>
         </Box>
       )}
     </Box>

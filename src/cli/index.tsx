@@ -35,13 +35,14 @@ import {
 } from "../db/projects.js";
 import { searchAll } from "../lib/search.js";
 import type { Plan, PlanStatus, Audit, AuditType, AuditStatus, SeverityLevel, Log, LogLevel } from "../types/index.js";
+import { safeText } from "./utils/terminal.js";
 
 const program = new Command();
 
 // Helpers
 
 function handleError(e: unknown): never {
-  console.error(chalk.red(e instanceof Error ? e.message : String(e)));
+  console.error(chalk.red(safeText(e instanceof Error ? e.message : String(e))));
   process.exit(1);
 }
 
@@ -49,7 +50,7 @@ function resolveEntityId(partialId: string, table: string): string {
   const db = getDatabase();
   const id = resolvePartialId(db, table, partialId);
   if (!id) {
-    console.error(chalk.red(`Could not resolve ID: ${partialId}`));
+    console.error(chalk.red(`Could not resolve ID: ${safeText(partialId)}`));
     process.exit(1);
   }
   return id;
@@ -116,20 +117,20 @@ const logLevelColors: Record<string, (s: string) => string> = {
 
 function formatPlanLine(p: Plan): string {
   const statusFn = planStatusColors[p.status] || chalk.white;
-  const tags = p.tags.length > 0 ? chalk.dim(` [${p.tags.join(",")}]`) : "";
-  return `${chalk.dim(p.id.slice(0, 8))} ${statusFn(p.status.padEnd(11))} ${p.title}${tags}`;
+  const tags = p.tags.length > 0 ? chalk.dim(` [${p.tags.map(safeText).join(",")}]`) : "";
+  return `${chalk.dim(safeText(p.id.slice(0, 8)))} ${statusFn(safeText(p.status).padEnd(11))} ${safeText(p.title)}${tags}`;
 }
 
 function formatAuditLine(a: Audit): string {
   const statusFn = auditStatusColors[a.status] || chalk.white;
   const sevFn = a.severity ? (severityColors[a.severity] || chalk.white) : chalk.dim;
-  return `${chalk.dim(a.id.slice(0, 8))} ${statusFn(a.status.padEnd(11))} ${a.type.padEnd(12)} ${sevFn(a.severity || "-")} ${a.title}`;
+  return `${chalk.dim(safeText(a.id.slice(0, 8)))} ${statusFn(safeText(a.status).padEnd(11))} ${safeText(a.type).padEnd(12)} ${sevFn(safeText(a.severity || "-"))} ${safeText(a.title)}`;
 }
 
 function formatLogLine(l: Log): string {
   const levelFn = logLevelColors[l.level] || chalk.white;
   const ts = l.created_at.replace("T", " ").slice(0, 19);
-  return `${levelFn(`[${l.level.toUpperCase().padEnd(5)}]`)} ${ts} ${chalk.dim(l.source)} ${l.message}`;
+  return `${levelFn(`[${safeText(l.level).toUpperCase().padEnd(5)}]`)} ${safeText(ts)} ${chalk.dim(safeText(l.source))} ${safeText(l.message)}`;
 }
 
 // Global options
@@ -232,18 +233,18 @@ planCmd
     }
 
     console.log(chalk.bold("Plan Details:\n"));
-    console.log(`  ${chalk.dim("ID:")}          ${plan.id}`);
-    console.log(`  ${chalk.dim("Title:")}       ${plan.title}`);
-    console.log(`  ${chalk.dim("Slug:")}        ${plan.slug}`);
-    console.log(`  ${chalk.dim("Status:")}      ${(planStatusColors[plan.status] || chalk.white)(plan.status)}`);
-    if (plan.description) console.log(`  ${chalk.dim("Description:")} ${plan.description}`);
-    if (plan.tags.length > 0) console.log(`  ${chalk.dim("Tags:")}        ${plan.tags.join(", ")}`);
-    console.log(`  ${chalk.dim("Version:")}     ${plan.version}`);
-    console.log(`  ${chalk.dim("Created:")}     ${plan.created_at}`);
-    console.log(`  ${chalk.dim("Updated:")}     ${plan.updated_at}`);
+    console.log(`  ${chalk.dim("ID:")}          ${safeText(plan.id)}`);
+    console.log(`  ${chalk.dim("Title:")}       ${safeText(plan.title)}`);
+    console.log(`  ${chalk.dim("Slug:")}        ${safeText(plan.slug)}`);
+    console.log(`  ${chalk.dim("Status:")}      ${(planStatusColors[plan.status] || chalk.white)(safeText(plan.status))}`);
+    if (plan.description) console.log(`  ${chalk.dim("Description:")} ${safeText(plan.description)}`);
+    if (plan.tags.length > 0) console.log(`  ${chalk.dim("Tags:")}        ${plan.tags.map(safeText).join(", ")}`);
+    console.log(`  ${chalk.dim("Version:")}     ${safeText(plan.version)}`);
+    console.log(`  ${chalk.dim("Created:")}     ${safeText(plan.created_at)}`);
+    console.log(`  ${chalk.dim("Updated:")}     ${safeText(plan.updated_at)}`);
 
     if (plan.content) {
-      console.log(`\n${chalk.bold("Content:")}\n${plan.content}`);
+      console.log(`\n${chalk.bold("Content:")}\n${safeText(plan.content)}`);
     }
   });
 
@@ -308,7 +309,7 @@ planCmd
     if (globalOpts.json) {
       output(plan, true);
     } else {
-      console.log(chalk.green(`Plan status set to ${status}:`));
+      console.log(chalk.green(`Plan status set to ${safeText(status)}:`));
       console.log(formatPlanLine(plan));
     }
   });
@@ -346,11 +347,11 @@ planCmd
     }
 
     if (plans.length === 0) {
-      console.log(chalk.dim(`No plans matching "${query}".`));
+      console.log(chalk.dim(`No plans matching "${safeText(query)}".`));
       return;
     }
 
-    console.log(chalk.bold(`${plans.length} result(s) for "${query}":\n`));
+    console.log(chalk.bold(`${plans.length} result(s) for "${safeText(query)}":\n`));
     for (const p of plans) {
       console.log(formatPlanLine(p));
     }
@@ -447,18 +448,18 @@ auditCmd
     }
 
     console.log(chalk.bold("Audit Details:\n"));
-    console.log(`  ${chalk.dim("ID:")}        ${audit.id}`);
-    console.log(`  ${chalk.dim("Title:")}     ${audit.title}`);
-    console.log(`  ${chalk.dim("Type:")}      ${audit.type}`);
-    console.log(`  ${chalk.dim("Status:")}    ${(auditStatusColors[audit.status] || chalk.white)(audit.status)}`);
-    if (audit.severity) console.log(`  ${chalk.dim("Severity:")}  ${(severityColors[audit.severity] || chalk.white)(audit.severity)}`);
-    console.log(`  ${chalk.dim("Version:")}   ${audit.version}`);
-    console.log(`  ${chalk.dim("Created:")}   ${audit.created_at}`);
-    console.log(`  ${chalk.dim("Updated:")}   ${audit.updated_at}`);
-    if (audit.completed_at) console.log(`  ${chalk.dim("Completed:")} ${audit.completed_at}`);
+    console.log(`  ${chalk.dim("ID:")}        ${safeText(audit.id)}`);
+    console.log(`  ${chalk.dim("Title:")}     ${safeText(audit.title)}`);
+    console.log(`  ${chalk.dim("Type:")}      ${safeText(audit.type)}`);
+    console.log(`  ${chalk.dim("Status:")}    ${(auditStatusColors[audit.status] || chalk.white)(safeText(audit.status))}`);
+    if (audit.severity) console.log(`  ${chalk.dim("Severity:")}  ${(severityColors[audit.severity] || chalk.white)(safeText(audit.severity))}`);
+    console.log(`  ${chalk.dim("Version:")}   ${safeText(audit.version)}`);
+    console.log(`  ${chalk.dim("Created:")}   ${safeText(audit.created_at)}`);
+    console.log(`  ${chalk.dim("Updated:")}   ${safeText(audit.updated_at)}`);
+    if (audit.completed_at) console.log(`  ${chalk.dim("Completed:")} ${safeText(audit.completed_at)}`);
 
     if (audit.findings) {
-      console.log(`\n${chalk.bold("Findings:")}\n${audit.findings}`);
+      console.log(`\n${chalk.bold("Findings:")}\n${safeText(audit.findings)}`);
     }
   });
 
@@ -667,11 +668,11 @@ logCmd
     }
 
     console.log(chalk.bold("Log Entry:\n"));
-    console.log(`  ${chalk.dim("ID:")}      ${log.id}`);
-    console.log(`  ${chalk.dim("Level:")}   ${(logLevelColors[log.level] || chalk.white)(log.level)}`);
-    console.log(`  ${chalk.dim("Source:")}  ${log.source}`);
-    console.log(`  ${chalk.dim("Created:")} ${log.created_at}`);
-    console.log(`\n${chalk.bold("Message:")}\n${log.message}`);
+    console.log(`  ${chalk.dim("ID:")}      ${safeText(log.id)}`);
+    console.log(`  ${chalk.dim("Level:")}   ${(logLevelColors[log.level] || chalk.white)(safeText(log.level))}`);
+    console.log(`  ${chalk.dim("Source:")}  ${safeText(log.source)}`);
+    console.log(`  ${chalk.dim("Created:")} ${safeText(log.created_at)}`);
+    console.log(`\n${chalk.bold("Message:")}\n${safeText(log.message)}`);
 
     if (Object.keys(log.metadata).length > 0) {
       console.log(`\n${chalk.bold("Metadata:")}`);
@@ -719,7 +720,7 @@ program
       if (globalOpts.json) {
         output(project, true);
       } else {
-        console.log(chalk.green(`Project registered: ${project.name} (${project.path})`));
+        console.log(chalk.green(`Project registered: ${safeText(project.name)} (${safeText(project.path)})`));
       }
       return;
     }
@@ -737,7 +738,7 @@ program
 
     console.log(chalk.bold(`${projects.length} project(s):\n`));
     for (const p of projects) {
-      console.log(`${chalk.dim(p.id.slice(0, 8))} ${chalk.bold(p.name)} ${chalk.dim(p.path)}${p.description ? ` - ${p.description}` : ""}`);
+      console.log(`${chalk.dim(safeText(p.id.slice(0, 8)))} ${chalk.bold(safeText(p.name))} ${chalk.dim(safeText(p.path))}${p.description ? ` - ${safeText(p.description)}` : ""}`);
     }
   });
 
@@ -758,11 +759,11 @@ program
 
     const total = results.plans.length + results.audits.length;
     if (total === 0) {
-      console.log(chalk.dim(`No results matching "${query}".`));
+      console.log(chalk.dim(`No results matching "${safeText(query)}".`));
       return;
     }
 
-    console.log(chalk.bold(`${total} result(s) for "${query}":\n`));
+    console.log(chalk.bold(`${total} result(s) for "${safeText(query)}":\n`));
 
     if (results.plans.length > 0) {
       console.log(chalk.bold("Plans:"));
@@ -775,6 +776,28 @@ program
       for (const a of results.audits) {
         console.log(`  ${formatAuditLine(a)}`);
       }
+    }
+  });
+
+// === UPDATE ===
+
+program
+  .command("update")
+  .description("Update @hasna/implementations to the latest version")
+  .option("--confirm", "Proceed with update")
+  .action(async (opts: { confirm?: boolean }) => {
+    try {
+      if (!opts.confirm && process.env["IMPLEMENTATIONS_ALLOW_UPDATE"] !== "true") {
+        console.log(chalk.yellow("Update requires confirmation. Re-run with --confirm or set IMPLEMENTATIONS_ALLOW_UPDATE=true."));
+        return;
+      }
+      const { execSync } = await import("child_process");
+      console.log(chalk.dim("Updating @hasna/implementations..."));
+      execSync("bun update @hasna/implementations", { stdio: "inherit" });
+      console.log(chalk.green("Update complete."));
+    } catch {
+      console.error(chalk.red("Update failed."));
+      process.exit(1);
     }
   });
 
@@ -793,14 +816,14 @@ program
     if (opts.format === "md") {
       console.log("# Plans\n");
       for (const p of plans) {
-        console.log(`- **${p.title}** (${p.status})`);
-        if (p.description) console.log(`  ${p.description}`);
+        console.log(`- **${safeText(p.title)}** (${safeText(p.status)})`);
+        if (p.description) console.log(`  ${safeText(p.description)}`);
       }
       console.log("\n# Audits\n");
       for (const a of audits) {
         const sev = a.severity ? ` [${a.severity}]` : "";
-        console.log(`- **${a.title}** (${a.type}, ${a.status})${sev}`);
-        if (a.findings) console.log(`  ${a.findings}`);
+        console.log(`- **${safeText(a.title)}** (${safeText(a.type)}, ${safeText(a.status)})${safeText(sev)}`);
+        if (a.findings) console.log(`  ${safeText(a.findings)}`);
       }
     } else {
       console.log(JSON.stringify({ plans, audits }, null, 2));
@@ -905,7 +928,7 @@ function registerCodex(binPath: string): void {
 
   content = removeTomlBlock(content, "mcp_servers.implementations");
 
-  const block = `\n[mcp_servers.implementations]\ncommand = "${binPath}"\nargs = []\n`;
+  const block = `\n[mcp_servers.implementations]\ncommand = "${tomlString(binPath)}"\nargs = []\n`;
   content = content.trimEnd() + "\n" + block;
 
   writeTomlFile(configPath, content);
@@ -946,6 +969,13 @@ function removeTomlBlock(content: string, blockName: string): string {
   }
 
   return result.join("\n");
+}
+
+function tomlString(value: string): string {
+  return value
+    .replace(/[\r\n]/g, "")
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, "\\\"");
 }
 
 function registerGemini(binPath: string): void {

@@ -45,6 +45,9 @@ export {
 // Search
 export { searchPlans, searchAudits, searchAll } from "./lib/search.js";
 
+// Stats
+export { getStats } from "./db/stats.js";
+
 // Types
 export type {
   Plan,
@@ -68,6 +71,7 @@ export type {
   LogLevel,
   Project,
   CreateProjectInput,
+  DashboardStats,
 } from "./types/index.js";
 
 export {

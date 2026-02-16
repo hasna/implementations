@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
+import { resolve } from "node:path";
 import { getDatabase, closeDatabase, resetDatabase } from "./database.js";
 import {
   createProject,
@@ -32,7 +33,7 @@ describe("createProject", () => {
       db,
     );
     expect(project.name).toBe("Test");
-    expect(project.path).toBe("/tmp/test");
+    expect(project.path).toBe(resolve("/tmp/test"));
     expect(project.id).toBeTruthy();
   });
 
@@ -64,6 +65,7 @@ describe("getProjectByPath", () => {
     const project = getProjectByPath("/tmp/test", db);
     expect(project).not.toBeNull();
     expect(project!.name).toBe("Test");
+    expect(project!.path).toBe(resolve("/tmp/test"));
   });
 
   it("should return null for non-existent path", () => {

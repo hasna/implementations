@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import type { Plan, Audit } from "../../types/index.js";
+import { safeText } from "../utils/terminal.js";
 
 interface SearchViewProps {
   planResults: Plan[];
@@ -66,7 +67,7 @@ export function SearchView({ planResults, auditResults, onSearch, onBack }: Sear
       <Box>
         <Text dimColor>Search: </Text>
         <Text color={isTyping ? "cyan" : undefined}>
-          {query}
+          {safeText(query)}
           {isTyping ? "▌" : ""}
         </Text>
       </Box>
@@ -82,10 +83,10 @@ export function SearchView({ planResults, auditResults, onSearch, onBack }: Sear
             {planResults.map((plan) => (
               <Box key={plan.id} marginLeft={1}>
                 <Text color={planStatusColors[plan.status] || "white"}>
-                  [{plan.status}]{" "}
+                  [{safeText(plan.status)}]{" "}
                 </Text>
-                <Text dimColor>{plan.id.slice(0, 8)} </Text>
-                <Text>{plan.title}</Text>
+                <Text dimColor>{safeText(plan.id.slice(0, 8))} </Text>
+                <Text>{safeText(plan.title)}</Text>
               </Box>
             ))}
           </Box>
@@ -97,10 +98,10 @@ export function SearchView({ planResults, auditResults, onSearch, onBack }: Sear
             {auditResults.map((audit) => (
               <Box key={audit.id} marginLeft={1}>
                 <Text color={auditStatusColors[audit.status] || "white"}>
-                  [{audit.status}]{" "}
+                  [{safeText(audit.status)}]{" "}
                 </Text>
-                <Text dimColor>{audit.id.slice(0, 8)} </Text>
-                <Text>{audit.type} | {audit.title}</Text>
+                <Text dimColor>{safeText(audit.id.slice(0, 8))} </Text>
+                <Text>{safeText(audit.type)} | {safeText(audit.title)}</Text>
               </Box>
             ))}
           </Box>

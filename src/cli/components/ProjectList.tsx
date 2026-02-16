@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import type { Project } from "../../types/index.js";
+import { safeText } from "../utils/terminal.js";
 
 interface ProjectListProps {
   projects: Project[];
@@ -23,10 +24,10 @@ export function ProjectList({ projects, selectedIndex }: ProjectListProps) {
               <Text color={isSelected ? "cyan" : undefined} bold={isSelected}>
                 {isSelected ? "❯ " : "  "}
               </Text>
-              <Text dimColor>{project.id.slice(0, 8)} </Text>
-              <Text bold={isSelected}>{project.name}</Text>
-              <Text dimColor> {project.path}</Text>
-              {project.description && <Text dimColor> - {project.description}</Text>}
+              <Text dimColor>{safeText(project.id.slice(0, 8))} </Text>
+              <Text bold={isSelected}>{safeText(project.name)}</Text>
+              <Text dimColor> {safeText(project.path)}</Text>
+              {project.description && <Text dimColor> - {safeText(project.description)}</Text>}
             </Box>
           );
         })

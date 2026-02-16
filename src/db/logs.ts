@@ -7,16 +7,49 @@ import type {
 } from "../types/index.js";
 import { getDatabase, now, uuid } from "./database.js";
 
+function parseJson<T>(value: string | null | undefined, fallback: T): T {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function parseMetadata(value: string | null | undefined): Record<string, unknown> {
+  const parsed = parseJson<unknown>(value, {});
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    return parsed as Record<string, unknown>;
+  }
+  return {};
+}
+
 function rowToLog(row: LogRow): Log {
   return {
     ...row,
-    metadata: JSON.parse(row.metadata || "{}") as Record<string, unknown>,
+    metadata: parseMetadata(row.metadata),
     level: row.level as Log["level"],
   };
 }
 
+function normalizeLimit(limit?: number): number | undefined {
+  if (limit === undefined || !Number.isFinite(limit)) return undefined;
+  const bounded = Math.max(0, Math.floor(limit));
+  return Math.min(bounded, 1000);
+}
+
+function normalizeOffset(offset?: number): number | undefined {
+  if (offset === undefined || !Number.isFinite(offset)) return undefined;
+  return Math.max(0, Math.floor(offset));
+}
+
 export function createLog(input: CreateLogInput, db?: Database): Log {
   const d = db || getDatabase();
+  const message = input.message?.trim();
+  if (!message) {
+    throw new Error("Log message is required");
+  }
+  const source = input.source?.trim() || "cli";
   const id = uuid();
   const timestamp = now();
 
@@ -27,8 +60,8 @@ export function createLog(input: CreateLogInput, db?: Database): Log {
       id,
       input.project_id || null,
       input.level || "info",
-      input.source || "cli",
-      input.message,
+      source,
+      message,
       JSON.stringify(input.metadata || {}),
       timestamp,
     ],
@@ -56,8 +89,10 @@ export function listLogs(filter: LogFilter = {}, db?: Database): Log[] {
 
   if (filter.level) {
     if (Array.isArray(filter.level)) {
-      conditions.push(`level IN (${filter.level.map(() => "?").join(",")})`);
-      params.push(...filter.level);
+      const levels = filter.level.filter(Boolean);
+      if (levels.length === 0) return [];
+      conditions.push(`level IN (${levels.map(() => "?").join(",")})`);
+      params.push(...levels);
     } else {
       conditions.push("level = ?");
       params.push(filter.level);
@@ -69,11 +104,16 @@ export function listLogs(filter: LogFilter = {}, db?: Database): Log[] {
     params.push(filter.source);
   }
 
-  const limit = filter.limit || 50;
+  const limit = normalizeLimit(filter.limit) ?? 50;
+  const offset = normalizeOffset(filter.offset);
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  const rows = d
-    .query(`SELECT * FROM logs ${where} ORDER BY created_at DESC LIMIT ?`)
-    .all(...params, limit) as LogRow[];
+  let sql = `SELECT * FROM logs ${where} ORDER BY created_at DESC LIMIT ?`;
+  const queryParams = [...params, limit];
+  if (offset !== undefined) {
+    sql += " OFFSET ?";
+    queryParams.push(offset);
+  }
+  const rows = d.query(sql).all(...queryParams) as LogRow[];
 
   return rows.map(rowToLog);
 }

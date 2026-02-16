@@ -1,4 +1,5 @@
 import { Box, Text } from "ink";
+import { safeText } from "../utils/terminal.js";
 
 interface HeaderProps {
   projectName?: string;
@@ -14,11 +15,11 @@ export function Header({ projectName, itemCount, view }: HeaderProps) {
           {" "}implementations{" "}
         </Text>
         <Text dimColor> | </Text>
-        <Text color="white">{view}</Text>
+        <Text color="white">{safeText(view)}</Text>
         {projectName && (
           <>
             <Text dimColor> | </Text>
-            <Text color="yellow">{projectName}</Text>
+            <Text color="yellow">{safeText(projectName)}</Text>
           </>
         )}
         <Text dimColor> | </Text>

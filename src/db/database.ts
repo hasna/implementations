@@ -121,19 +121,20 @@ export function getDatabase(dbPath?: string): Database {
 }
 
 function runMigrations(db: Database): void {
-  // Check current migration level
-  try {
-    const result = db.query("SELECT MAX(id) as max_id FROM _migrations").get() as { max_id: number | null } | null;
-    const currentLevel = result?.max_id ?? 0;
+  // Ensure migrations table exists for tracking
+  db.exec(
+    `CREATE TABLE IF NOT EXISTS _migrations (
+      id INTEGER PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );`,
+  );
 
-    for (let i = currentLevel; i < MIGRATIONS.length; i++) {
-      db.run(MIGRATIONS[i]!);
-    }
-  } catch {
-    // _migrations table doesn't exist yet, run all migrations
-    for (const migration of MIGRATIONS) {
-      db.exec(migration);
-    }
+  const result = db.query("SELECT MAX(id) as max_id FROM _migrations").get() as { max_id: number | null } | null;
+  const currentLevel = result?.max_id ?? 0;
+
+  for (let i = currentLevel; i < MIGRATIONS.length; i++) {
+    db.exec(MIGRATIONS[i]!);
+    db.run("INSERT OR REPLACE INTO _migrations (id) VALUES (?)", [i + 1]);
   }
 }
 
@@ -165,14 +166,20 @@ export function slugify(text: string): string {
 }
 
 export function resolvePartialId(db: Database, table: string, partialId: string): string | null {
-  if (partialId.length >= 36) {
+  const allowedTables = new Set(["plans", "audits", "logs", "projects"]);
+  if (!allowedTables.has(table)) {
+    throw new Error(`Invalid table name: ${table}`);
+  }
+  const trimmed = partialId.trim();
+  if (!trimmed) return null;
+  if (trimmed.length >= 36) {
     // Full UUID
-    const row = db.query(`SELECT id FROM ${table} WHERE id = ?`).get(partialId) as { id: string } | null;
+    const row = db.query(`SELECT id FROM ${table} WHERE id = ?`).get(trimmed) as { id: string } | null;
     return row?.id ?? null;
   }
 
   // Partial match (prefix)
-  const rows = db.query(`SELECT id FROM ${table} WHERE id LIKE ?`).all(`${partialId}%`) as { id: string }[];
+  const rows = db.query(`SELECT id FROM ${table} WHERE id LIKE ?`).all(`${trimmed}%`) as { id: string }[];
   if (rows.length === 1) {
     return rows[0]!.id;
   }

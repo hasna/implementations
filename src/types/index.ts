@@ -118,6 +118,8 @@ export interface PlanFilter {
   project_id?: string;
   status?: PlanStatus | PlanStatus[];
   tags?: string[];
+  limit?: number;
+  offset?: number;
 }
 
 // Audit
@@ -176,6 +178,8 @@ export interface AuditFilter {
   type?: AuditType | AuditType[];
   status?: AuditStatus | AuditStatus[];
   severity?: SeverityLevel | SeverityLevel[];
+  limit?: number;
+  offset?: number;
 }
 
 // Log
@@ -212,6 +216,15 @@ export interface LogFilter {
   level?: LogLevel | LogLevel[];
   source?: string;
   limit?: number;
+  offset?: number;
+}
+
+// Dashboard stats (used by API + UI)
+export interface DashboardStats {
+  projects: { total: number };
+  plans: { total: number; draft: number; active: number; done: number };
+  audits: { total: number; pending: number; completed: number; failed: number };
+  logs: { total: number; errors: number; warns: number };
 }
 
 // Error classes

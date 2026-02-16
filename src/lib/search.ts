@@ -2,11 +2,34 @@ import type { Database, SQLQueryBindings } from "bun:sqlite";
 import type { Audit, AuditRow, Plan, PlanRow } from "../types/index.js";
 import { getDatabase } from "../db/database.js";
 
+function parseJson<T>(value: string | null | undefined, fallback: T): T {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function parseMetadata(value: string | null | undefined): Record<string, unknown> {
+  const parsed = parseJson<unknown>(value, {});
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    return parsed as Record<string, unknown>;
+  }
+  return {};
+}
+
+function parseTags(value: string | null | undefined): string[] {
+  const parsed = parseJson<unknown>(value, []);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter((tag): tag is string => typeof tag === "string");
+}
+
 function rowToPlan(row: PlanRow): Plan {
   return {
     ...row,
-    tags: JSON.parse(row.tags || "[]") as string[],
-    metadata: JSON.parse(row.metadata || "{}") as Record<string, unknown>,
+    tags: parseTags(row.tags),
+    metadata: parseMetadata(row.metadata),
     status: row.status as Plan["status"],
   };
 }
@@ -14,7 +37,7 @@ function rowToPlan(row: PlanRow): Plan {
 function rowToAudit(row: AuditRow): Audit {
   return {
     ...row,
-    metadata: JSON.parse(row.metadata || "{}") as Record<string, unknown>,
+    metadata: parseMetadata(row.metadata),
     type: row.type as Audit["type"],
     status: row.status as Audit["status"],
     severity: row.severity as Audit["severity"],
@@ -27,7 +50,9 @@ export function searchPlans(
   db?: Database,
 ): Plan[] {
   const d = db || getDatabase();
-  const pattern = `%${query}%`;
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const pattern = `%${trimmed}%`;
 
   let sql = `SELECT * FROM plans WHERE (title LIKE ? OR description LIKE ? OR content LIKE ? OR tags LIKE ?)`;
   const params: SQLQueryBindings[] = [pattern, pattern, pattern, pattern];
@@ -49,7 +74,9 @@ export function searchAudits(
   db?: Database,
 ): Audit[] {
   const d = db || getDatabase();
-  const pattern = `%${query}%`;
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const pattern = `%${trimmed}%`;
 
   let sql = `SELECT * FROM audits WHERE (title LIKE ? OR findings LIKE ?)`;
   const params: SQLQueryBindings[] = [pattern, pattern];

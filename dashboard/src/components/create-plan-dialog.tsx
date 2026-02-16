@@ -27,7 +27,7 @@ interface CreatePlanDialogProps {
     content?: string;
     status?: string;
     tags?: string[];
-  }) => void;
+  }) => Promise<boolean>;
 }
 
 export function CreatePlanDialog({ onCreate }: CreatePlanDialogProps) {
@@ -37,27 +37,38 @@ export function CreatePlanDialog({ onCreate }: CreatePlanDialogProps) {
   const [content, setContent] = React.useState("");
   const [status, setStatus] = React.useState("draft");
   const [tags, setTags] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || submitting) return;
 
-    onCreate({
-      title: title.trim(),
-      description: description.trim() || undefined,
-      content: content.trim() || undefined,
-      status,
-      tags: tags.trim()
-        ? tags.split(",").map((t) => t.trim()).filter(Boolean)
-        : undefined,
-    });
+    setSubmitting(true);
+    let ok = false;
+    try {
+      ok = await onCreate({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        content: content.trim() || undefined,
+        status,
+        tags: tags.trim()
+          ? tags.split(",").map((t) => t.trim()).filter(Boolean)
+          : undefined,
+      });
+    } catch {
+      ok = false;
+    } finally {
+      setSubmitting(false);
+    }
 
-    setTitle("");
-    setDescription("");
-    setContent("");
-    setStatus("draft");
-    setTags("");
-    setOpen(false);
+    if (ok) {
+      setTitle("");
+      setDescription("");
+      setContent("");
+      setStatus("draft");
+      setTags("");
+      setOpen(false);
+    }
   }
 
   return (
@@ -128,7 +139,7 @@ export function CreatePlanDialog({ onCreate }: CreatePlanDialogProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={!title.trim()}>
+            <Button type="submit" disabled={!title.trim() || submitting}>
               Create Plan
             </Button>
           </DialogFooter>

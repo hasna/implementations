@@ -38,7 +38,17 @@ export interface Log {
   created_at: string;
 }
 
+export interface Project {
+  id: string;
+  name: string;
+  path: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DashboardStats {
+  projects: { total: number };
   plans: { total: number; draft: number; active: number; done: number };
   audits: { total: number; pending: number; completed: number; failed: number };
   logs: { total: number; errors: number; warns: number };

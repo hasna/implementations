@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { FileTextIcon, ActivityIcon, ShieldCheckIcon, ScrollTextIcon } from "lucide-react";
+import { FileTextIcon, ActivityIcon, ShieldCheckIcon, ScrollTextIcon, FolderIcon } from "lucide-react";
 import type { DashboardStats } from "@/types";
 
 interface StatsCardsProps {
@@ -8,7 +8,7 @@ interface StatsCardsProps {
 
 export function StatsCards({ stats }: StatsCardsProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-5">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -60,6 +60,17 @@ export function StatsCards({ stats }: StatsCardsProps) {
               </span>
             )}
           </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <FolderIcon className="size-4" />
+            Projects
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold">{stats.projects.total}</div>
         </CardContent>
       </Card>
     </div>

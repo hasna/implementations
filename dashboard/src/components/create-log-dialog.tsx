@@ -24,7 +24,7 @@ interface CreateLogDialogProps {
     message: string;
     level?: string;
     source?: string;
-  }) => void;
+  }) => Promise<boolean>;
 }
 
 export function CreateLogDialog({ onCreate }: CreateLogDialogProps) {
@@ -32,21 +32,32 @@ export function CreateLogDialog({ onCreate }: CreateLogDialogProps) {
   const [message, setMessage] = React.useState("");
   const [level, setLevel] = React.useState("info");
   const [source, setSource] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || submitting) return;
 
-    onCreate({
-      message: message.trim(),
-      level,
-      source: source.trim() || undefined,
-    });
+    setSubmitting(true);
+    let ok = false;
+    try {
+      ok = await onCreate({
+        message: message.trim(),
+        level,
+        source: source.trim() || undefined,
+      });
+    } catch {
+      ok = false;
+    } finally {
+      setSubmitting(false);
+    }
 
-    setMessage("");
-    setLevel("info");
-    setSource("");
-    setOpen(false);
+    if (ok) {
+      setMessage("");
+      setLevel("info");
+      setSource("");
+      setOpen(false);
+    }
   }
 
   return (
@@ -99,7 +110,7 @@ export function CreateLogDialog({ onCreate }: CreateLogDialogProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={!message.trim()}>
+            <Button type="submit" disabled={!message.trim() || submitting}>
               Create Log
             </Button>
           </DialogFooter>
