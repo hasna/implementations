@@ -269,3 +269,6 @@ export class ProjectNotFoundError extends Error {
     this.name = "ProjectNotFoundError";
   }
 }
+
+/** PostgreSQL migrations for cloud sync. */
+export declare const PG_MIGRATIONS: string[];
