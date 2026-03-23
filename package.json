@@ -1,6 +1,6 @@
 {
   "name": "@hasna/implementations",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Plans, audits, and logs for AI coding agents - CLI + MCP server + interactive TUI + web dashboard",
   "repository": {
     "type": "git",
@@ -55,6 +55,10 @@
   ],
   "author": "hasna",
   "license": "Apache-2.0",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "chalk": "^5.4.1",
