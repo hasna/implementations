@@ -1,6 +1,9 @@
 // Core database
 export { getDatabase, closeDatabase, resetDatabase, resolvePartialId, slugify } from "./db/database.js";
 
+// PostgreSQL migrations
+export { PG_MIGRATIONS } from "./db/pg-migrations.js";
+
 // Plans
 export {
   createPlan,
