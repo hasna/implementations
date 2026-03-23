@@ -1,11 +1,12 @@
 import { Database } from "bun:sqlite";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, cpSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 function getDbPath(): string {
-  // 1. Environment variable override
-  if (process.env["IMPLEMENTATIONS_DB_PATH"]) {
-    return process.env["IMPLEMENTATIONS_DB_PATH"];
+  // 1. Environment variable override (new name first, then legacy)
+  const explicitPath = process.env["HASNA_IMPLEMENTATIONS_DB_PATH"] ?? process.env["IMPLEMENTATIONS_DB_PATH"];
+  if (explicitPath) {
+    return explicitPath;
   }
 
   // 2. Per-project: .implementations/implementations.db in cwd
@@ -15,9 +16,18 @@ function getDbPath(): string {
     return localDb;
   }
 
-  // 3. Default: ~/.implementations/implementations.db
+  // 3. Default: ~/.hasna/implementations/implementations.db (with backward compat)
   const home = process.env["HOME"] || process.env["USERPROFILE"] || "~";
-  return join(home, ".implementations", "implementations.db");
+  const newDir = join(home, ".hasna", "implementations");
+  const oldDir = join(home, ".implementations");
+
+  // Auto-migrate: copy old data to new location if needed
+  if (!existsSync(newDir) && existsSync(oldDir)) {
+    mkdirSync(join(home, ".hasna"), { recursive: true });
+    cpSync(oldDir, newDir, { recursive: true });
+  }
+
+  return join(newDir, "implementations.db");
 }
 
 function ensureDir(filePath: string): void {
