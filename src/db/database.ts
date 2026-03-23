@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import { SqliteAdapter } from "@hasna/cloud";
 import { existsSync, mkdirSync, cpSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
@@ -107,9 +108,25 @@ const MIGRATIONS = [
 
   INSERT OR IGNORE INTO _migrations (id) VALUES (1);
   `,
+
+  // Migration 2: Feedback table
+  `
+  CREATE TABLE IF NOT EXISTS feedback (
+    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+    message TEXT NOT NULL,
+    email TEXT,
+    category TEXT DEFAULT 'general',
+    version TEXT,
+    machine_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  INSERT OR IGNORE INTO _migrations (id) VALUES (2);
+  `,
 ];
 
 let _db: Database | null = null;
+let _adapter: SqliteAdapter | null = null;
 
 export function getDatabase(dbPath?: string): Database {
   if (_db) return _db;
@@ -117,12 +134,11 @@ export function getDatabase(dbPath?: string): Database {
   const path = dbPath || getDbPath();
   ensureDir(path);
 
-  _db = new Database(path, { create: true });
+  _adapter = new SqliteAdapter(path);
+  _db = _adapter.raw;
 
-  // Enable WAL mode for concurrent access
-  _db.run("PRAGMA journal_mode = WAL");
+  // SqliteAdapter already sets WAL and foreign_keys; add busy_timeout
   _db.run("PRAGMA busy_timeout = 5000");
-  _db.run("PRAGMA foreign_keys = ON");
 
   // Run migrations
   runMigrations(_db);
@@ -152,11 +168,21 @@ export function closeDatabase(): void {
   if (_db) {
     _db.close();
     _db = null;
+    _adapter = null;
   }
 }
 
 export function resetDatabase(): void {
   _db = null;
+  _adapter = null;
+}
+
+/** Get the SqliteAdapter for direct SQL queries (e.g. feedback). */
+export function getAdapter(): SqliteAdapter {
+  if (!_adapter) {
+    getDatabase(); // force initialization
+  }
+  return _adapter!;
 }
 
 export function now(): string {

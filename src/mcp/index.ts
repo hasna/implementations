@@ -29,7 +29,7 @@ import {
   listProjects,
 } from "../db/projects.js";
 import { searchAll } from "../lib/search.js";
-import { getDatabase, resolvePartialId } from "../db/database.js";
+import { getDatabase, getAdapter, resolvePartialId } from "../db/database.js";
 import {
   VersionConflictError,
   PlanNotFoundError,
@@ -588,6 +588,27 @@ server.resource(
   async () => {
     const projects = listProjects();
     return { contents: [{ uri: "implementations://projects", text: JSON.stringify(projects, null, 2), mimeType: "application/json" }] };
+  },
+);
+
+// === FEEDBACK ===
+
+server.tool(
+  "send_feedback",
+  "Send feedback about this service",
+  {
+    message: z.string().describe("Feedback message"),
+    email: z.string().optional().describe("Contact email (optional)"),
+    category: z.enum(["bug", "feature", "general"]).optional().describe("Feedback category"),
+  },
+  async (params: { message: string; email?: string; category?: string }) => {
+    const adapter = getAdapter();
+    const pkg = require("../../package.json");
+    adapter.run(
+      "INSERT INTO feedback (message, email, category, version) VALUES (?, ?, ?, ?)",
+      params.message, params.email || null, params.category || "general", pkg.version
+    );
+    return { content: [{ type: "text" as const, text: "Feedback saved. Thank you!" }] };
   },
 );
 

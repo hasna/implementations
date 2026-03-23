@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { execSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { getDatabase, resolvePartialId } from "../db/database.js";
+import { getDatabase, getAdapter, resolvePartialId } from "../db/database.js";
 import {
   createPlan,
   getPlan,
@@ -1082,6 +1082,23 @@ program
     const globalOpts = program.opts();
     const projectId = autoProject(globalOpts);
     renderApp(projectId);
+  });
+
+// ── Feedback ─────────────────────────────────────────────────────────────────
+
+program
+  .command("feedback <message>")
+  .description("Send feedback")
+  .option("--email <email>", "Contact email")
+  .option("--category <category>", "Category: bug, feature, general")
+  .action((message: string, opts: { email?: string; category?: string }) => {
+    const adapter = getAdapter();
+    const pkg = JSON.parse(readFileSync(join(import.meta.dir, "../../package.json"), "utf8"));
+    adapter.run(
+      "INSERT INTO feedback (message, email, category, version) VALUES (?, ?, ?, ?)",
+      message, opts.email || null, opts.category || "general", pkg.version
+    );
+    console.log(chalk.green("Feedback saved. Thank you!"));
   });
 
 // Default action
