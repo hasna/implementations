@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { registerCloudTools } from "@hasna/cloud";
 import { z } from "zod";
 import {
   createPlan,
@@ -657,6 +658,7 @@ server.tool("list_agents", "List all registered agents.", {}, async () => {
 
 async function main() {
   const transport = new StdioServerTransport();
+  registerCloudTools(server, "implementations");
   await server.connect(transport);
 }
 
