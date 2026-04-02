@@ -58,7 +58,7 @@ function resolveEntityId(partialId: string, table: string): string {
 
 function detectGitRoot(): string | null {
   try {
-    return execSync("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
+    return execSync("git rev-parse --show-toplevel", { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
   } catch {
     return null;
   }
